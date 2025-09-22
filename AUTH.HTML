@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CampusSphere - College Event Hub</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #1f1f1f;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      color: #58a6ff;
+      margin: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #1e1e2e;
+      border-radius: 8px;
+    }
+    .event-card {
+      background: #2a2a3f;
+      padding: 15px;
+      border-left: 5px solid #58a6ff;
+      margin-bottom: 15px;
+    }
+    .event-card img {
+      max-width: 100%;
+      margin-top: 10px;
+      border-radius: 4px;
+      display: block;
+    }
+    form input, form textarea, form select, form button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background: #333;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    form button {
+      background: #58a6ff;
+      border: none;
+      cursor: pointer;
+    }
+    form button:hover {
+      background: #3b8ed0;
+    }
+    .points {
+      text-align: right;
+      font-weight: bold;
+      color: #aaffaa;
+      margin-bottom: 15px;
+    }
+    .badge {
+      background: #444;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8em;
+      display: inline-block;
+      margin-left: 8px;
+    }
+    #leaderboard {
+      background: #252535;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    #leaderboard h3 {
+      margin-top: 0;
+      color: #ffdf6b;
+    }
+    .delete-btn {
+      margin-top: 10px;
+      background: #d33;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      background: #a00;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #aaffaa;
+      margin-bottom: 20px;
+    }
+    th, td {
+      border: 1px solid #58a6ff;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background: #2a2a3f;
+    }
+    #search-input {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      border-radius: 4px;
+      border: 1px solid #555;
+      background: #333;
+      color: white;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎓 CampusSphere - College Event Hub</h1>
+  </header>
+
+  <div class="container">
+    <h2>Welcome</h2>
+    <p>Select your college to get started:</p>
+    <select id="college-select">
+      <option value="">-- Select College --</option>
+      <option value="Ams College">Ams College</option>
+      <option value="Jaya College">Jaya College</option>
+      <option value="Srm College">Srm College</option>
+      <option value="Saveetha College">Saveetha College</option>
+      <option value="Panimalar College">Panimalar College</option>
+      <option value="IIT Madras College">IIT Madras College</option>
+      <option value="CIT College">CIT College</option>
+    </select>
+
+    <input type="text" id="search-input" placeholder="Search events by title or description..." />
+
+    <!-- Points Table for all colleges -->
+    <h2>Points Table (By College)</h2>
+    <table id="points-table">
+      <thead>
+        <tr>
+          <th>College</th>
+          <th>Event Posts</th>
+          <th>Image Uploads</th>
+          <th>Votes</th>
+          <th>Total Points</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Rows will be inserted here dynamically -->
+      </tbody>
+    </table>
+
+    <div id="leaderboard" class="points">🏆 College Leaderboard will appear here</div>
+
+    <h2>Post New Event</h2>
+    <form id="event-form">
+      <input type="text" id="event-title" placeholder="Event Title" required />
+      <input type="date" id="event-date" required />
+      <select id="event-type" required>
+        <option value="">-- Select Event Type --</option>
+        <option value="💻 Technical">💻 Technical</option>
+        <option value="🎤 Cultural">🎤 Cultural</option>
+        <option value="⚽ Sports">⚽ Sports</option>
+        <option value="Arts And Literary">Arts And Literary</option>
+        <option value="Fun And Informers">Fun And Informers</option>
+        <option value="🎤 Music And Dance">🎤 Music And Dance</option>
+      </select>
+      <textarea id="event-desc" placeholder="Description" required></textarea>
+      <button type="submit">Add Event</button>
+    </form>
+
+    <h2>All Events (Filtered by College)</h2>
+    <div id="event-list"></div>
+  </div>
+
+  <script>
+    let allEvents = [];
+    let collegePoints = {};
+    let currentCollege = '';
+    let currentSearchTerm = '';
+
+    const collegeSelect = document.getElementById('college-select');
+    const form = document.getElementById('event-form');
+    const eventList = document.getElementById('event-list');
+    const leaderboard = document.getElementById('leaderboard');
+    const pointsTableBody = document.querySelector('#points-table tbody');
+    const searchInput = document.getElementById('search-input');
+
+    // Load from localStorage on start
+    function loadFromStorage() {
+      const storedEvents = localStorage.getItem('campusSphere_events');
+      const storedPoints = localStorage.getItem('campusSphere_collegePoints');
+
+      allEvents = storedEvents ? JSON.parse(storedEvents) : [];
+      collegePoints = storedPoints ? JSON.parse(storedPoints) : {};
+    }
+
+    // Save to localStorage after changes
+    function saveToStorage() {
+      localStorage.setItem('campusSphere_events', JSON.stringify(allEvents));
+      localStorage.setItem('campusSphere_collegePoints', JSON.stringify(collegePoints));
+    }
+
+    function ensureCollegePointsEntry(college) {
+      if (!collegePoints[college]) {
+        collegePoints[college] = {posts: 0, uploads: 0, votes: 0};
+      }
+    }
+
+    function updateCollegePoints(college, activity, amount) {
+      ensureCollegePointsEntry(college);
+      collegePoints[college][activity] += amount;
+      saveToStorage();
+      renderPointsTable();
+    }
+
+    function renderPointsTable() {
+      pointsTableBody.innerHTML = '';
+      const sortedColleges = Object.keys(collegePoints).sort();
+
+      if (sortedColleges.length === 0) {
+        pointsTableBody.innerHTML = '<tr><td colspan="5">No points data yet.</td></tr>';
+        return;
+      }
+
+      sortedColleges.forEach(college => {
+        const p = collegePoints[college];
+        const total = p.posts + p.uploads + p.votes;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${college}</td>
+          <td>${p.posts}</td>
+          <td>${p.uploads}</td>
+          <td>${p.votes}</td>
+          <td>${total}</td>
+        `;
+        pointsTableBody.appendChild(tr);
+      });
+    }
+
+    function renderLeaderboard() {
+      const collegeCounts = {};
+
+      allEvents.forEach(ev => {
+        if (!collegeCounts[ev.college]) collegeCounts[ev.college] = 0;
+        collegeCounts[ev.college]++;
+      });
+
+      const sorted = Object.entries(collegeCounts).sort((a, b) => b[1] - a[1]);
+
+      if (sorted.length === 0) {
+        leaderboard.innerHTML = `<h3>🏆 College Leaderboard</h3><p>No colleges have posted events yet.</p>`;
+        return;
+      }
+
+      leaderboard.innerHTML = `<h3>🏆 College Leaderboard</h3>` + sorted.map(([college, count]) => `<p>${college}: ${count} events</p>`).join('');
+    }
+
+    function renderEvents() {
+      eventList.innerHTML = '';
+      if (!currentCollege) {
+        eventList.innerHTML = '<p>Please select a college to view events.</p>';
+        return;
+      }
+
+      // Filter events by college and search term
+      let filtered = allEvents.filter(ev => ev.college === currentCollege);
+
+      if (currentSearchTerm.trim() !== '') {
+        const term = currentSearchTerm.toLowerCase();
+        filtered = filtered.filter(ev =>
+          ev.title.toLowerCase().includes(term) || ev.desc.toLowerCase().includes(term)
+        );
+      }
+
+      if (filtered.length === 0) {
+        eventList.innerHTML = '<p>No events for your college yet.</p>';
+        return;
+      }
+
+      filtered.forEach((event, filteredIndex) => {
+        const div = document.createElement('div');
+        div.className = 'event-card';
+        div.innerHTML = `
+          <h3>${event.title} <span class="badge">${event.type}</span></h3>
+          <p><strong>Date:</strong> ${event.date}</p>
+          <p>${event.desc}</p>
+          ${event.media ? `<img src="${event.media}" alt="Event Image"/>` : ''}
+          <input type="file" accept="image/*" onchange="uploadMedia(${filteredIndex}, this)" />
+          ${event.media ? `<button class="delete-btn" onclick="deleteMedia(${filteredIndex})">Delete Image</button>` : ''}
+          <p><button onclick="voteEvent(${filteredIndex})">👍 Vote</button> Votes: ${event.votes || 0}</p>
+        `;
+        eventList.appendChild(div);
+      });
+    }
+
+    function uploadMedia(index, inputElement) {
+      if (inputElement.files && inputElement.files[0]) {
+        const file = inputElement.files[0];
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const filtered = allEvents.filter(ev => ev.college === currentCollege);
+          const event = filtered[index];
+          const globalIndex = allEvents.indexOf(event);
+          if (globalIndex !== -1) {
+            allEvents[globalIndex].media = e.target.result; // Base64 image string
+            updateCollegePoints(currentCollege, 'uploads', 10);
+            saveToStorage();
+            renderEvents();
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function deleteMedia(index) {
+      const filtered = allEvents.filter(ev => ev.college === currentCollege);
+      const event = filtered[index];
+      const globalIndex = allEvents.indexOf(event);
+      if (globalIndex !== -1) {
+        allEvents[globalIndex].media = null;
+        saveToStorage();
+        renderEvents();
+      }
+    }
+
+    function voteEvent(index) {
+      const filtered = allEvents.filter(ev => ev.college === currentCollege);
+      const event = filtered[index];
+      const globalIndex = allEvents.indexOf(event);
+
+      if (globalIndex !== -1) {
+        allEvents[globalIndex].votes = (allEvents[globalIndex].votes || 0) + 1;
+        updateCollegePoints(currentCollege, 'votes', 2);
+        saveToStorage();
+        renderEvents();
+      }
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!currentCollege) {
+        alert('Please select a college first.');
+        return;
+      }
+
+      const title = document.getElementById('event-title').value.trim();
+      const date = document.getElementById('event-date').value;
+      const desc = document.getElementById('event-desc').value.trim();
+      const type = document.getElementById('event-type').value;
+
+      const today = new Date().toISOString().split('T')[0];
+      if (date < today) {
+        alert('Please enter a future date.');
+        return;
+      }
+
+      allEvents.push({
+        title,
+        date,
+        desc,
+        type,
+        college: currentCollege,
+        media: null,
+        votes: 0
+      });
+
+      updateCollegePoints(currentCollege, 'posts', 5);
+      saveToStorage();
+
+      form.reset();
+      renderEvents();
+      renderLeaderboard();
+    });
+
+    collegeSelect.addEventListener('change', function () {
+      currentCollege = this.value;
+      currentSearchTerm = ''; // Reset search on college change
+      searchInput.value = '';
+      renderEvents();
+      renderLeaderboard();
+    });
+
+    searchInput.addEventListener('input', function () {
+      currentSearchTerm = this.value;
+      renderEvents();
+    });
+
+    // Load saved data and render on startup
+    loadFromStorage();
+    renderPointsTable();
+    renderLeaderboard();
+
+    // If college was previously selected, restore selection and render events
+    if (allEvents.length > 0) {
+      // Attempt to restore last selected college from localStorage or pick the first college found
+      currentCollege = localStorage.getItem('campusSphere_lastCollege') || '';
+      if (currentCollege && [...collegeSelect.options].some(opt => opt.value === currentCollege)) {
+        collegeSelect.value = currentCollege;
+        renderEvents();
+      }
+    }
+
+    // Save selected college on change
+    collegeSelect.addEventListener('change', () => {
+      localStorage.setItem('campusSphere_lastCollege', collegeSelect.value);
+    });
+
+    // Make functions global for HTML attribute access
+    window.uploadMedia = uploadMedia;
+    window.deleteMedia = deleteMedia;
+    window.voteEvent = voteEvent;
+  </script>
+</body>
+</html>
